@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дневник Трейдера | Смотритель Рынка</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+</head>
+<body>
+
+    <div class="container py-4">
+        <header class="d-flex justify-content-between align-items-center mb-4 fade-in">
+            <div>
+                <h2 class="mb-0"><i class="fas fa-chart-line text-primary"></i> <span id="appTitle">Дневник</span></h2>
+                <small class="text-muted" id="greeting">Смотритель Рынка</small>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-icon" id="privacyBtn" onclick="togglePrivacy()" title="Privacy Mode">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <div class="dropdown">
+                    <button class="btn btn-icon" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-globe"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-dark">
+                        <li><a class="dropdown-item" href="#" onclick="setLang('ru')">Русский</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="setLang('en')">English</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <div id="mainSection" class="fade-in">
+            <div class="card">
+                <h4 class="mb-3" data-translate="newTradeTitle">Новая сделка</h4>
+                <form id="tradeForm" onsubmit="saveTrade(event)">
+                    <div class="row g-3">
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" data-translate="coin">Монета</label>
+                            <div class="input-group">
+                                <select class="form-select" id="coin" required></select>
+                                <button type="button" class="btn btn-outline-secondary" onclick="addCustomCoin()">+</button>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" data-translate="position">Позиция</label>
+                            <select class="form-select" id="position">
+                                <option value="Long" class="text-success">Long 🟢</option>
+                                <option value="Short" class="text-danger">Short 🔴</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" data-translate="date">Дата</label>
+                            <input type="date" class="form-control" id="open_date" required>
+                        </div>
+                        
+                        <div class="col-6 col-md-3">
+                            <label class="form-label" data-translate="risk">Риск ($)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="risk" step="0.01" placeholder="0.00">
+                                <button type="button" class="btn btn-outline-secondary" onclick="openCalculator()" title="Risk Calculator">
+                                    <i class="fas fa-calculator text-muted"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-6">
+                            <label class="form-label" data-translate="profit">Прибыль ($)</label>
+                            <input type="number" class="form-control" id="profit" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label" data-translate="loss">Убыток ($)</label>
+                            <input type="number" class="form-control" id="loss" step="0.01" placeholder="0.00">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label" data-translate="result">Итог (%)</label>
+                            <input type="number" class="form-control" id="result" step="0.01" placeholder="-1.5 / 3.2" required>
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label" data-translate="notes">Сетап / Заметки</label>
+                            <textarea class="form-control mb-3" id="setup" rows="2" placeholder="..."></textarea>
+                            
+                            <div class="drop-zone" id="dropZone" onclick="document.getElementById('imageInput').click()">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p data-translate="dropHint">Нажми или перетащи скриншот сюда</p>
+                                <input type="file" id="imageInput" accept="image/*" multiple style="display: none;" onchange="handleImageSelect(event)">
+                            </div>
+                            <div id="imagePreviewContainer" class="image-preview-container"></div>
+                        </div>
+
+                        <div class="col-12 mt-4">
+                             <button type="submit" class="btn btn-primary-custom w-100" id="submitBtn">
+                                <i class="fas fa-save me-2"></i> <span data-translate="saveBtn">Сохранить сделку</span>
+                             </button>
+                             <button type="button" class="btn btn-secondary w-100 mt-2" id="cancelBtn" onclick="cancelEdit()" style="display:none" data-translate="cancelBtn">Отмена</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="viewSection" class="fade-in" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0" data-translate="historyTitle">История</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th data-translate="tableDate">Дата</th>
+                            <th data-translate="tablePair">Пара</th>
+                            <th data-translate="tablePos">Поз.</th>
+                            <th class="text-end">P&L ($)</th>
+                            <th class="text-end">%</th>
+                            <th class="text-center" data-translate="tableAct">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tradesBody"></tbody>
+                </table>
+            </div>
+            <div class="text-center mt-2">
+                <small class="text-muted" style="font-size: 0.7rem;">
+                    <i class="fas fa-arrows-alt-h"></i> <span data-translate="scrollHint">Свайп для просмотра таблицы</span>
+                </small>
+            </div>
+        </div>
+
+        <div id="statsSection" class="fade-in" style="display: none;">
+            
+            <div class="card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <button class="btn btn-icon btn-sm" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <h5 class="mb-0 text-uppercase font-mono" id="calendarMonthLabel">Month 2024</h5>
+                    <button class="btn btn-icon btn-sm" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                
+                <div class="calendar-header-row mb-2" id="calendarHeader"></div>
+
+                <div class="calendar-grid" id="calendarGrid"></div>
+                
+                <div class="text-center mt-3 d-md-none">
+                    <small class="text-muted" style="font-size: 0.7rem;" data-translate="tapHint">Tap on day to see details</small>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <h4 class="mb-3" data-translate="equityTitle">Кривая капитала</h4>
+                <div style="position: relative; height: 300px; width: 100%;">
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="stat-box tilt-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.2">
+                        <div class="stat-label" data-translate="statTotal">Всего сделок</div>
+                        <div class="stat-value font-mono" id="totalTrades">0</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box tilt-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.2">
+                        <div class="stat-label" data-translate="statWinrate">Винрейт</div>
+                        <div class="stat-value text-primary font-mono" id="winRate">0%</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box tilt-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.2">
+                        <div class="stat-label" data-translate="statNet">Чистая прибыль</div>
+                        <div class="stat-value font-mono privacy-target" id="totalNetProfit">0$</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="stat-box tilt-card" data-tilt data-tilt-max="15" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.2">
+                        <div class="stat-label" data-translate="statFactor">Профит фактор</div>
+                        <div class="stat-value font-mono" id="profitFactor">0</div>
+                    </div>
+                </div>
+            </div>
+            <h4 class="mb-3" data-translate="achievementsTitle">Достижения</h4>
+            <div class="row g-3" id="achievementsGrid"></div>
+        </div>
+    </div>
+
+    <nav class="navbar">
+        <div class="container d-flex justify-content-around">
+            <a href="#" class="nav-link-custom active" onclick="showSection('main', this)">
+                <i class="fas fa-plus-circle"></i> <span data-translate="navInput">Ввод</span>
+            </a>
+            <a href="#" class="nav-link-custom" onclick="showSection('view', this)">
+                <i class="fas fa-list"></i> <span data-translate="navJournal">Журнал</span>
+            </a>
+            <a href="#" class="nav-link-custom" onclick="showSection('stats', this)">
+                <i class="fas fa-chart-pie"></i> <span data-translate="navAnalysis">Анализ</span>
+            </a>
+        </div>
+    </nav>
+
+    <div class="modal fade" id="imageModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content modal-content-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title" data-translate="modalTitle">Скриншот</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImageFull" src="" class="img-fluid rounded">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="achievementModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content modal-content-dark text-center p-3">
+                <div class="modal-body">
+                    <i id="achieveModalIcon" class="fas fa-crown fa-3x text-warning mb-3"></i>
+                    <h5 id="achieveModalTitle" class="fw-bold mb-2">Название</h5>
+                    <p id="achieveModalDesc" class="text-muted small mb-0">Описание</p>
+                </div>
+                <div class="modal-footer border-0 p-0 justify-content-center">
+                    <button type="button" class="btn btn-sm btn-secondary w-100 mt-3" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="calcModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-content-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-calculator text-primary me-2"></i> <span data-translate="calcTitle">Калькулятор Риска</span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted" data-translate="calcDeposit">Твой Депозит ($)</label>
+                        <input type="number" class="form-control" id="calcBalance" placeholder="e.g. 1000">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-muted d-flex justify-content-between">
+                            <span data-translate="calcRiskPercent">Риск (%)</span>
+                            <span id="calcRiskDisplay" class="text-primary fw-bold">1%</span>
+                        </label>
+                        <input type="range" class="form-range" id="calcRiskInput" min="0.1" max="5" step="0.1" value="1" oninput="updateCalcDisplay()">
+                    </div>
+                    <div class="text-center p-3 rounded" style="background: rgba(59, 130, 246, 0.1);">
+                        <small class="text-muted text-uppercase">Риск на сделку</small>
+                        <h2 class="mb-0 text-white font-mono" id="calcResult">$10.00</h2>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-primary-custom w-100" onclick="applyRisk()" data-translate="calcApply">Применить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="dayDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-content-dark">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title font-mono" id="dayDetailsDate">2024-10-15</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pt-2">
+                    <div class="text-center mb-4 p-3 rounded" style="background: rgba(255,255,255,0.03);">
+                        <small class="text-muted text-uppercase mb-1" data-translate="dayNet">Чистый итог</small>
+                        <h2 class="font-mono mb-0 privacy-blur" id="dayDetailsNet">+150$</h2>
+                        <small class="text-muted" id="dayDetailsCount">3 Trades</small>
+                    </div>
+                    <h6 class="text-muted text-uppercase small mb-3" data-translate="dayTrades">Сделки</h6>
+                    <div id="dayTradesList" class="d-flex flex-column gap-2">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="shareCanvas" style="display:none;"></canvas>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
