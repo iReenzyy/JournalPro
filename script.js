@@ -18,7 +18,9 @@ const translations = {
         calcTitle: "Калькулятор Риска", calcDeposit: "Твой Депозит ($)", calcRiskPercent: "Риск (%)", calcApply: "Применить",
         weekDays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
         tapHint: "Нажми на день для подробностей",
-        dayNet: "Чистый итог", dayTrades: "Сделки дня"
+        dayNet: "Чистый итог", dayTrades: "Сделки дня",
+        riskWidgetTitle: "Дневной риск", riskStatusSafe: "БЕЗОПАСНО", riskStatusWarn: "ОСТОРОЖНО", riskStatusDanger: "СТОП ТОРГИ",
+        riskSettingsTitle: "Настройка Риска", dailyLossLimit: "Дневной лимит убытка ($)", riskDesc: "Если убыток за день превысит эту сумму, виджет станет красным."
     },
     en: {
         title: "Journal", newTradeTitle: "New Trade",
@@ -39,19 +41,28 @@ const translations = {
         calcTitle: "Risk Calculator", calcDeposit: "Your Balance ($)", calcRiskPercent: "Risk (%)", calcApply: "Apply Risk",
         weekDays: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
         tapHint: "Tap on day to see details",
-        dayNet: "Net Result", dayTrades: "Trades of the day"
+        dayNet: "Net Result", dayTrades: "Trades of the day",
+        riskWidgetTitle: "Daily Risk Guard", riskStatusSafe: "SAFE", riskStatusWarn: "WARNING", riskStatusDanger: "STOP TRADING",
+        riskSettingsTitle: "Risk Settings", dailyLossLimit: "Daily Loss Limit ($)", riskDesc: "If daily loss exceeds this amount, widget turns red."
     }
 };
 
 let trades = JSON.parse(localStorage.getItem("trades")) || [];
 let coins = JSON.parse(localStorage.getItem("coins")) || ["BTC/USDT", "ETH/USDT", "SOL/USDT"];
-let currentLang = localStorage.getItem("lang") || "ru";
+// 1. ЖЕЛЕЗОБЕТОННЫЙ РУССКИЙ ПО УМОЛЧАНИЮ
+let currentLang = localStorage.getItem("lang");
+if (!currentLang) {
+    currentLang = "ru";
+    localStorage.setItem("lang", "ru");
+}
+
 let editId = null;
 let equityChartInstance = null;
 let currentImages = [];
 let privacyMode = false;
 let userBalance = localStorage.getItem("userBalance") || "";
 let calendarDate = new Date();
+let dailyLossLimit = localStorage.getItem("dailyLossLimit") || 0; 
 
 window.onload = function() {
     setLang(currentLang);
@@ -185,6 +196,9 @@ function updateStats() {
     const netEl = document.getElementById("totalNetProfit"); netEl.innerText = netProfit.toFixed(2) + "$"; netEl.className = "stat-value font-mono privacy-target privacy-blur " + (netProfit >= 0 ? "text-success" : "text-danger");
     document.getElementById("profitFactor").innerText = profitFactor; 
     renderChart(); renderAchievements(totalTrades, netProfit, winRate); renderCalendar();
+    
+    // Вызываем рендер Риск Виджета
+    renderRiskWidget();
 }
 function renderAchievements(total, profit, winRate) {
     const grid = document.getElementById('achievementsGrid'); grid.innerHTML = ""; const t = translations[currentLang];
@@ -204,115 +218,109 @@ function renderChart() {
 function showToast(msg) { Toastify({ text: msg, duration: 3000, gravity: "bottom", position: "right", style: { background: "var(--primary-accent)" } }).showToast(); }
 
 /* --- CALENDAR LOGIC --- */
-function changeMonth(step) {
-    calendarDate.setMonth(calendarDate.getMonth() + step);
-    renderCalendar();
-}
-
-function renderCalendarHeader() {
-    const header = document.getElementById("calendarHeader");
-    const days = translations[currentLang].weekDays;
-    header.innerHTML = "";
-    days.forEach(day => {
-        header.innerHTML += `<div>${day}</div>`;
-    });
-}
-
+function changeMonth(step) { calendarDate.setMonth(calendarDate.getMonth() + step); renderCalendar(); }
+function renderCalendarHeader() { const header = document.getElementById("calendarHeader"); const days = translations[currentLang].weekDays; header.innerHTML = ""; days.forEach(day => { header.innerHTML += `<div>${day}</div>`; }); }
 function renderCalendar() {
-    renderCalendarHeader(); // Ensure header is localized
-    const year = calendarDate.getFullYear();
-    const month = calendarDate.getMonth();
-    
-    // Label
+    renderCalendarHeader(); const year = calendarDate.getFullYear(); const month = calendarDate.getMonth();
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const monthNamesRu = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
     document.getElementById("calendarMonthLabel").innerText = `${currentLang === 'ru' ? monthNamesRu[month] : monthNames[month]} ${year}`;
-
-    // Logic
-    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const grid = document.getElementById("calendarGrid");
-    grid.innerHTML = "";
-
-    // Adjust for Monday start (ISO)
-    let startOffset = firstDay === 0 ? 6 : firstDay - 1;
-
-    // Empty slots
-    for(let i=0; i<startOffset; i++) {
-        grid.innerHTML += `<div class="calendar-day empty"></div>`;
-    }
-
-    // Days
+    const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const grid = document.getElementById("calendarGrid"); grid.innerHTML = ""; let startOffset = firstDay === 0 ? 6 : firstDay - 1;
+    for(let i=0; i<startOffset; i++) { grid.innerHTML += `<div class="calendar-day empty"></div>`; }
     for(let day=1; day<=daysInMonth; day++) {
         const dateStr = `${year}-${String(month+1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        
-        // Find trades for this day
-        const dayTrades = trades.filter(t => t.date === dateStr);
-        let dayPnl = 0;
-        dayTrades.forEach(t => {
-            dayPnl += (t.result > 0 ? t.profit : -t.loss);
-        });
-
-        let content = `<span class="day-number">${day}</span>`;
-        let classes = "calendar-day";
-        
-        if (dayTrades.length > 0) {
-            if (dayPnl > 0) classes += " win";
-            if (dayPnl < 0) classes += " loss";
-            
-            const pnlFormatted = (dayPnl > 0 ? "+" : "") + dayPnl.toFixed(0) + "$";
-            const countText = dayTrades.length + (currentLang==='ru' ? " сд." : " tr.");
-            
-            content += `
-                <div class="day-profit font-mono ${dayPnl >= 0 ? 'text-white' : 'text-white'} privacy-blur">${pnlFormatted}</div>
-                <div class="day-count">${countText}</div>
-            `;
-        }
-
+        const dayTrades = trades.filter(t => t.date === dateStr); let dayPnl = 0; dayTrades.forEach(t => { dayPnl += (t.result > 0 ? t.profit : -t.loss); });
+        let content = `<span class="day-number">${day}</span>`; let classes = "calendar-day";
+        if (dayTrades.length > 0) { if (dayPnl > 0) classes += " win"; if (dayPnl < 0) classes += " loss"; const pnlFormatted = (dayPnl > 0 ? "+" : "") + dayPnl.toFixed(0) + "$"; const countText = dayTrades.length + (currentLang==='ru' ? " сд." : " tr."); content += `<div class="day-profit font-mono ${dayPnl >= 0 ? 'text-white' : 'text-white'} privacy-blur">${pnlFormatted}</div><div class="day-count">${countText}</div>`; }
         grid.innerHTML += `<div class="${classes}" onclick="openDayDetails('${dateStr}')">${content}</div>`;
     }
 }
-
 function openDayDetails(dateStr) {
-    const dayTrades = trades.filter(t => t.date === dateStr);
-    
-    // Set Modal Title
-    document.getElementById("dayDetailsDate").innerText = dateStr;
-    
-    // Calc Net
-    let net = 0;
-    dayTrades.forEach(t => net += (t.result > 0 ? t.profit : -t.loss));
-    
-    const netEl = document.getElementById("dayDetailsNet");
-    netEl.innerText = (net > 0 ? "+" : "") + net.toFixed(2) + "$";
-    netEl.className = "font-mono mb-0 privacy-blur " + (net >= 0 ? "text-success" : "text-danger");
-    
+    const dayTrades = trades.filter(t => t.date === dateStr); document.getElementById("dayDetailsDate").innerText = dateStr;
+    let net = 0; dayTrades.forEach(t => net += (t.result > 0 ? t.profit : -t.loss));
+    const netEl = document.getElementById("dayDetailsNet"); netEl.innerText = (net > 0 ? "+" : "") + net.toFixed(2) + "$"; netEl.className = "font-mono mb-0 privacy-blur " + (net >= 0 ? "text-success" : "text-danger");
     document.getElementById("dayDetailsCount").innerText = dayTrades.length + (currentLang === 'ru' ? " Сделок" : " Trades");
-    
-    // List Trades
-    const list = document.getElementById("dayTradesList");
-    list.innerHTML = "";
-    
-    if(dayTrades.length === 0) {
-        list.innerHTML = `<div class="text-center text-muted py-3 small">${currentLang==='ru' ? 'В этот день не было сделок' : 'No trades on this day'}</div>`;
-    } else {
-        dayTrades.forEach(t => {
-            const isWin = t.result > 0;
-            const pnl = isWin ? t.profit : -t.loss;
-            list.innerHTML += `
-                <div class="trade-mini-card">
-                    <div class="d-flex align-items-center gap-2">
-                        <span class="badge ${t.position === 'Long' ? 'bg-success' : 'bg-danger'} bg-opacity-25 text-white" style="font-size:0.6rem">${t.position}</span>
-                        <strong class="text-white">${t.coin}</strong>
-                    </div>
-                    <div class="text-end">
-                        <div class="font-mono ${isWin ? 'text-success' : 'text-danger'} privacy-blur">${isWin?'+':''}${pnl}$</div>
-                        <small>${t.result}%</small>
-                    </div>
-                </div>
-            `;
-        });
-    }
-    
+    const list = document.getElementById("dayTradesList"); list.innerHTML = "";
+    if(dayTrades.length === 0) { list.innerHTML = `<div class="text-center text-muted py-3 small">${currentLang==='ru' ? 'В этот день не было сделок' : 'No trades on this day'}</div>`; } 
+    else { dayTrades.forEach(t => { const isWin = t.result > 0; const pnl = isWin ? t.profit : -t.loss; list.innerHTML += `<div class="trade-mini-card"><div class="d-flex align-items-center gap-2"><span class="badge ${t.position === 'Long' ? 'bg-success' : 'bg-danger'} bg-opacity-25 text-white" style="font-size:0.6rem">${t.position}</span><strong class="text-white">${t.coin}</strong></div><div class="text-end"><div class="font-mono ${isWin ? 'text-success' : 'text-danger'} privacy-blur">${isWin?'+':''}${pnl}$</div><small>${t.result}%</small></div></div>`; }); }
     new bootstrap.Modal(document.getElementById('dayDetailsModal')).show();
+}
+
+/* --- RISK WIDGET LOGIC --- */
+function openRiskSettings() {
+    document.getElementById("dailyLossInput").value = dailyLossLimit;
+    new bootstrap.Modal(document.getElementById('riskLimitModal')).show();
+}
+
+function saveRiskLimit() {
+    const val = parseFloat(document.getElementById("dailyLossInput").value);
+    dailyLossLimit = val >= 0 ? val : 0;
+    localStorage.setItem("dailyLossLimit", dailyLossLimit);
+    bootstrap.Modal.getInstance(document.getElementById('riskLimitModal')).hide();
+    renderRiskWidget();
+    showToast(currentLang === 'ru' ? "Лимит риска сохранен!" : "Risk limit saved!");
+}
+
+function renderRiskWidget() {
+    const t = translations[currentLang];
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayTrades = trades.filter(tr => tr.date === todayStr);
+    let todayPnl = 0;
+    todayTrades.forEach(tr => todayPnl += (tr.result > 0 ? tr.profit : -tr.loss));
+
+    const currentEl = document.getElementById("riskWidgetCurrent");
+    const limitEl = document.getElementById("riskWidgetLimit");
+    const bar = document.getElementById("riskProgressBar");
+    const status = document.getElementById("riskWidgetStatus");
+    const card = document.getElementById("riskWidgetCard");
+
+    currentEl.innerText = (todayPnl > 0 ? "+" : "") + todayPnl.toFixed(2) + "$";
+    limitEl.innerText = `Limit: ${dailyLossLimit}$`;
+    
+    // Сброс классов
+    card.classList.remove("pulse-warning", "pulse-orange", "pulse-critical");
+    bar.className = "progress-bar";
+    status.className = "badge";
+
+    if (!dailyLossLimit || dailyLossLimit == 0) {
+        bar.style.width = "0%"; bar.style.backgroundColor = "var(--text-muted)";
+        status.innerText = "NO LIMIT"; status.classList.add("bg-secondary");
+        return;
+    }
+
+    if (todayPnl >= 0) {
+        bar.style.width = "0%"; status.innerText = t.riskStatusSafe; status.classList.add("bg-success");
+        currentEl.className = "mb-0 font-mono privacy-blur text-success";
+    } else {
+        const loss = Math.abs(todayPnl);
+        const percent = (loss / dailyLossLimit) * 100;
+        
+        currentEl.className = "mb-0 font-mono privacy-blur text-danger";
+        bar.style.width = Math.min(percent, 100) + "%";
+
+        if (percent < 50) {
+            bar.style.backgroundColor = "var(--success)";
+            status.innerText = t.riskStatusSafe;
+            status.classList.add("bg-success");
+        } else if (percent < 75) {
+            // Желтая зона (50% - 75%)
+            bar.style.backgroundColor = "var(--warning)";
+            status.innerText = t.riskStatusWarn;
+            status.classList.add("bg-warning", "text-dark");
+            card.classList.add("pulse-warning");
+        } else if (percent < 100) {
+            // Оранжевая зона (75% - 99%)
+            bar.style.backgroundColor = "var(--orange)";
+            status.innerText = t.riskStatusWarn; // Или можно добавить High Warning
+            status.classList.add("bg-warning", "text-dark");
+            card.classList.add("pulse-orange");
+        } else {
+            // Красная зона (100%+)
+            bar.style.backgroundColor = "var(--danger)";
+            status.innerText = t.riskStatusDanger;
+            status.classList.add("bg-danger");
+            card.classList.add("pulse-critical");
+        }
+    }
 }
