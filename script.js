@@ -20,7 +20,11 @@ const translations = {
         tapHint: "Нажми на день для подробностей",
         dayNet: "Чистый итог", dayTrades: "Сделки дня",
         riskWidgetTitle: "Дневной риск", riskStatusSafe: "БЕЗОПАСНО", riskStatusWarn: "ОСТОРОЖНО", riskStatusDanger: "СТОП ТОРГИ",
-        riskSettingsTitle: "Настройка Риска", dailyLossLimit: "Дневной лимит убытка ($)", riskDesc: "Если убыток за день превысит эту сумму, виджет станет красным."
+        riskSettingsTitle: "Настройка Риска", dailyLossLimit: "Дневной лимит убытка ($)", riskDesc: "Если убыток за день превысит эту сумму, виджет станет красным.",
+        tagsTitle: "Теги", tagsHint: "Клик - выбор, Крестик - удаление", tagsAnalysisTitle: "Эффективность Тегов",
+        confirmTagDelete: "Удалить тег?",
+        dataModalTitle: "Управление данными", dataModalDesc: "Сохрани резервную копию своих данных, чтобы не потерять журнал. Или загрузи файл для восстановления.",
+        exportBtn: "Скачать Бэкап (Экспорт)", importBtn: "Загрузить Бэкап (Импорт)", importSuccess: "Данные успешно загружены!", importError: "Ошибка чтения файла!"
     },
     en: {
         title: "Journal", newTradeTitle: "New Trade",
@@ -43,12 +47,20 @@ const translations = {
         tapHint: "Tap on day to see details",
         dayNet: "Net Result", dayTrades: "Trades of the day",
         riskWidgetTitle: "Daily Risk Guard", riskStatusSafe: "SAFE", riskStatusWarn: "WARNING", riskStatusDanger: "STOP TRADING",
-        riskSettingsTitle: "Risk Settings", dailyLossLimit: "Daily Loss Limit ($)", riskDesc: "If daily loss exceeds this amount, widget turns red."
+        riskSettingsTitle: "Risk Settings", dailyLossLimit: "Daily Loss Limit ($)", riskDesc: "If daily loss exceeds this amount, widget turns red.",
+        tagsTitle: "Tags", tagsHint: "Click to select, X to delete", tagsAnalysisTitle: "Tags Performance",
+        confirmTagDelete: "Delete tag?",
+        dataModalTitle: "Data Management", dataModalDesc: "Save a backup of your data to keep it safe. Or load a file to restore.",
+        exportBtn: "Download Backup (Export)", importBtn: "Upload Backup (Import)", importSuccess: "Data loaded successfully!", importError: "Error reading file!"
     }
 };
 
 let trades = JSON.parse(localStorage.getItem("trades")) || [];
 let coins = JSON.parse(localStorage.getItem("coins")) || ["BTC/USDT", "ETH/USDT", "SOL/USDT"];
+// TAGS DATA
+let availableTags = JSON.parse(localStorage.getItem("availableTags")) || ["Trend", "Reversal", "FOMO", "Impulse", "Scalp"];
+let selectedTags = [];
+
 // 1. ЖЕЛЕЗОБЕТОННЫЙ РУССКИЙ ПО УМОЛЧАНИЮ
 let currentLang = localStorage.getItem("lang");
 if (!currentLang) {
@@ -67,6 +79,7 @@ let dailyLossLimit = localStorage.getItem("dailyLossLimit") || 0;
 window.onload = function() {
     setLang(currentLang);
     renderCoinSelect();
+    renderTagSelector(); // RENDER TAGS
     document.getElementById("open_date").valueAsDate = new Date();
     updateStats();
     updateGreeting();
@@ -165,28 +178,104 @@ function showSection(sectionId, element) {
 function renderCoinSelect() { const select = document.getElementById("coin"); select.innerHTML = ""; coins.forEach(c => { let opt = document.createElement("option"); opt.value = c; opt.text = c; select.appendChild(opt); }); }
 function addCustomCoin() { const val = prompt(currentLang === 'ru' ? "Введите пару:" : "Enter pair:"); if(val) { coins.push(val.toUpperCase()); localStorage.setItem("coins", JSON.stringify(coins)); renderCoinSelect(); document.getElementById("coin").value = val.toUpperCase(); } }
 
+/* --- TAGS LOGIC --- */
+function renderTagSelector() {
+    const container = document.getElementById("tagSelectionContainer");
+    container.innerHTML = "";
+    availableTags.forEach(tag => {
+        const isActive = selectedTags.includes(tag);
+        container.innerHTML += `
+        <div class="tag-chip ${isActive ? 'active' : ''}">
+            <span onclick="toggleTag('${tag}')">${tag}</span>
+            <span class="tag-delete" onclick="deleteTag('${tag}')">✕</span>
+        </div>`;
+    });
+}
+function toggleTag(tag) {
+    if (selectedTags.includes(tag)) { selectedTags = selectedTags.filter(t => t !== tag); } 
+    else { selectedTags.push(tag); }
+    renderTagSelector();
+}
+function deleteTag(tag) {
+    if(confirm(`${translations[currentLang].confirmTagDelete} "${tag}"`)) {
+        availableTags = availableTags.filter(t => t !== tag);
+        selectedTags = selectedTags.filter(t => t !== tag);
+        localStorage.setItem("availableTags", JSON.stringify(availableTags));
+        renderTagSelector();
+    }
+}
+function addNewTag() {
+    const input = document.getElementById("newTagInput");
+    const val = input.value.trim();
+    if(val && !availableTags.includes(val)) {
+        availableTags.push(val);
+        selectedTags.push(val);
+        localStorage.setItem("availableTags", JSON.stringify(availableTags));
+        input.value = "";
+        renderTagSelector();
+    }
+}
+
 function saveTrade(e) {
     e.preventDefault();
-    const trade = { id: editId || Date.now(), coin: document.getElementById("coin").value, position: document.getElementById("position").value, date: document.getElementById("open_date").value, risk: parseFloat(document.getElementById("risk").value) || 0, profit: parseFloat(document.getElementById("profit").value) || 0, loss: parseFloat(document.getElementById("loss").value) || 0, result: parseFloat(document.getElementById("result").value) || 0, setup: document.getElementById("setup").value, images: currentImages };
+    const trade = { 
+        id: editId || Date.now(), 
+        coin: document.getElementById("coin").value, 
+        position: document.getElementById("position").value, 
+        date: document.getElementById("open_date").value, 
+        risk: parseFloat(document.getElementById("risk").value) || 0, 
+        profit: parseFloat(document.getElementById("profit").value) || 0, 
+        loss: parseFloat(document.getElementById("loss").value) || 0, 
+        result: parseFloat(document.getElementById("result").value) || 0, 
+        setup: document.getElementById("setup").value, 
+        images: currentImages,
+        tags: selectedTags 
+    };
     if (trade.result > 0 && !editId) triggerConfetti();
     if(editId) { trades[trades.findIndex(t => t.id === editId)] = trade; showToast(translations[currentLang].toastUpdated); editId = null; document.querySelector("#submitBtn span").innerText = translations[currentLang].saveBtn; document.getElementById("cancelBtn").style.display = 'none'; } 
     else { trades.push(trade); showToast(translations[currentLang].toastSaved); }
-    localStorage.setItem("trades", JSON.stringify(trades)); e.target.reset(); document.getElementById("open_date").valueAsDate = new Date(); currentImages = []; renderImagePreviews();
+    localStorage.setItem("trades", JSON.stringify(trades)); 
+    e.target.reset(); 
+    document.getElementById("open_date").valueAsDate = new Date(); 
+    currentImages = []; 
+    selectedTags = []; 
+    renderImagePreviews();
+    renderTagSelector();
 }
 function deleteTrade(id) { if(confirm(translations[currentLang].confirmDelete)) { trades = trades.filter(t => t.id !== id); localStorage.setItem("trades", JSON.stringify(trades)); renderTable(); updateStats(); showToast(translations[currentLang].toastDeleted); } }
 function editTrade(id) {
     const t = trades.find(t => t.id === id); if(!t) return;
-    editId = id; document.getElementById("coin").value = t.coin; document.getElementById("position").value = t.position; document.getElementById("open_date").value = t.date; document.getElementById("risk").value = t.risk; document.getElementById("profit").value = t.profit; document.getElementById("loss").value = t.loss; document.getElementById("result").value = t.result; document.getElementById("setup").value = t.setup; currentImages = t.images || []; renderImagePreviews();
+    editId = id; document.getElementById("coin").value = t.coin; document.getElementById("position").value = t.position; document.getElementById("open_date").value = t.date; document.getElementById("risk").value = t.risk; document.getElementById("profit").value = t.profit; document.getElementById("loss").value = t.loss; document.getElementById("result").value = t.result; document.getElementById("setup").value = t.setup; 
+    currentImages = t.images || []; 
+    selectedTags = t.tags || []; 
+    renderImagePreviews();
+    renderTagSelector();
     document.querySelector("#submitBtn span").innerText = translations[currentLang].updateBtn; document.getElementById("cancelBtn").style.display = 'block'; showSection('main', document.querySelector('.nav-link-custom:nth-child(1)'));
 }
-function cancelEdit() { editId = null; document.getElementById("tradeForm").reset(); currentImages = []; renderImagePreviews(); document.querySelector("#submitBtn span").innerText = translations[currentLang].saveBtn; document.getElementById("cancelBtn").style.display = 'none'; }
+function cancelEdit() { 
+    editId = null; 
+    document.getElementById("tradeForm").reset(); 
+    currentImages = []; 
+    selectedTags = []; 
+    renderImagePreviews(); 
+    renderTagSelector();
+    document.querySelector("#submitBtn span").innerText = translations[currentLang].saveBtn; document.getElementById("cancelBtn").style.display = 'none'; 
+}
 
 function renderTable() {
     const tbody = document.getElementById("tradesBody"); tbody.innerHTML = "";
     if (trades.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><i class="fas fa-rocket fa-3x text-muted mb-3 opacity-25"></i><h5 class="text-muted fw-normal">${translations[currentLang].emptyState}</h5><button class="btn btn-outline-primary btn-sm mt-2" onclick="showSection('main', document.querySelector('.nav-link-custom:nth-child(1)'))">${translations[currentLang].startBtn}</button></td></tr>`; return; }
     [...trades].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(t => {
         const isWin = t.result > 0; const pnl = isWin ? t.profit : -t.loss; const pnlClass = isWin ? 'text-profit' : (t.result < 0 ? 'text-loss' : ''); const imageIcon = (t.images && t.images.length > 0) ? `<i class="fas fa-camera text-muted ms-1"></i>` : ''; const blurClass = "privacy-blur"; 
-        tbody.innerHTML += `<tr><td class="text-muted small">${t.date}</td><td><strong class="text-white">${t.coin}</strong>${imageIcon}</td><td><span class="badge ${t.position === 'Long' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}">${t.position}</span></td><td class="text-end ${pnlClass} font-mono ${blurClass}">${pnl > 0 ? '+' : ''}${pnl}$</td><td class="text-end ${pnlClass} font-mono">${t.result}%</td><td class="text-center"><button class="btn btn-sm btn-link text-muted" onclick="generateShareCard(${t.id})" title="Share"><i class="fas fa-share-nodes"></i></button><button class="btn btn-sm btn-link text-muted" onclick="editTrade(${t.id})"><i class="fas fa-pen"></i></button><button class="btn btn-sm btn-link text-muted" onclick="deleteTrade(${t.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+        
+        let tagsHtml = '';
+        if(t.tags && t.tags.length > 0) {
+            tagsHtml = '<div class="mt-1">';
+            t.tags.forEach(tag => { tagsHtml += `<span class="tag-badge-table">${tag}</span>`; });
+            tagsHtml += '</div>';
+        }
+
+        tbody.innerHTML += `<tr><td class="text-muted small">${t.date}</td><td><strong class="text-white">${t.coin}</strong>${imageIcon}${tagsHtml}</td><td><span class="badge ${t.position === 'Long' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}">${t.position}</span></td><td class="text-end ${pnlClass} font-mono ${blurClass}">${pnl > 0 ? '+' : ''}${pnl}$</td><td class="text-end ${pnlClass} font-mono">${t.result}%</td><td class="text-center"><button class="btn btn-sm btn-link text-muted" onclick="generateShareCard(${t.id})" title="Share"><i class="fas fa-share-nodes"></i></button><button class="btn btn-sm btn-link text-muted" onclick="editTrade(${t.id})"><i class="fas fa-pen"></i></button><button class="btn btn-sm btn-link text-muted" onclick="deleteTrade(${t.id})"><i class="fas fa-trash"></i></button></td></tr>`;
     });
 }
 function updateStats() {
@@ -196,9 +285,48 @@ function updateStats() {
     const netEl = document.getElementById("totalNetProfit"); netEl.innerText = netProfit.toFixed(2) + "$"; netEl.className = "stat-value font-mono privacy-target privacy-blur " + (netProfit >= 0 ? "text-success" : "text-danger");
     document.getElementById("profitFactor").innerText = profitFactor; 
     renderChart(); renderAchievements(totalTrades, netProfit, winRate); renderCalendar();
-    
-    // Вызываем рендер Риск Виджета
+    renderTagsAnalytics();
     renderRiskWidget();
+}
+function renderTagsAnalytics() {
+    const container = document.getElementById("tagsStatsContainer");
+    container.innerHTML = "";
+    
+    const stats = {};
+    trades.forEach(t => {
+        if(t.tags && t.tags.length > 0) {
+            t.tags.forEach(tag => {
+                if(!stats[tag]) stats[tag] = { pnl: 0, wins: 0, count: 0 };
+                stats[tag].pnl += (t.result > 0 ? t.profit : -t.loss);
+                if(t.result > 0) stats[tag].wins++;
+                stats[tag].count++;
+            });
+        }
+    });
+
+    const entries = Object.entries(stats);
+    if(entries.length === 0) {
+        container.innerHTML = `<div class="text-center text-muted small py-2">Нет данных по тегам</div>`;
+        return;
+    }
+
+    entries.sort((a, b) => b[1].pnl - a[1].pnl);
+
+    entries.forEach(([tag, data]) => {
+        const isPos = data.pnl >= 0;
+        const winRate = ((data.wins / data.count) * 100).toFixed(0);
+        container.innerHTML += `
+        <div class="tag-stat-card">
+            <div>
+                <strong class="text-white">${tag}</strong>
+                <div class="small text-muted">${data.count} trades | ${winRate}% WR</div>
+            </div>
+            <div class="font-mono ${isPos ? 'text-success' : 'text-danger'} privacy-blur" style="font-weight:700">
+                ${isPos?'+':''}${data.pnl.toFixed(2)}$
+            </div>
+        </div>
+        `;
+    });
 }
 function renderAchievements(total, profit, winRate) {
     const grid = document.getElementById('achievementsGrid'); grid.innerHTML = ""; const t = translations[currentLang];
@@ -304,23 +432,75 @@ function renderRiskWidget() {
             status.innerText = t.riskStatusSafe;
             status.classList.add("bg-success");
         } else if (percent < 75) {
-            // Желтая зона (50% - 75%)
             bar.style.backgroundColor = "var(--warning)";
             status.innerText = t.riskStatusWarn;
             status.classList.add("bg-warning", "text-dark");
             card.classList.add("pulse-warning");
         } else if (percent < 100) {
-            // Оранжевая зона (75% - 99%)
             bar.style.backgroundColor = "var(--orange)";
-            status.innerText = t.riskStatusWarn; // Или можно добавить High Warning
+            status.innerText = t.riskStatusWarn; 
             status.classList.add("bg-warning", "text-dark");
             card.classList.add("pulse-orange");
         } else {
-            // Красная зона (100%+)
             bar.style.backgroundColor = "var(--danger)";
             status.innerText = t.riskStatusDanger;
             status.classList.add("bg-danger");
             card.classList.add("pulse-critical");
         }
     }
+}
+
+/* --- BACKUP LOGIC --- */
+function openDataModal() {
+    new bootstrap.Modal(document.getElementById('dataModal')).show();
+}
+
+function exportData() {
+    const data = {
+        trades: trades,
+        coins: coins,
+        userBalance: userBalance,
+        dailyLossLimit: dailyLossLimit,
+        availableTags: availableTags
+    };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trading_journal_backup_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    showToast("Бэкап скачан!");
+}
+
+function importDataTrigger() {
+    document.getElementById("importFileInput").click();
+}
+
+function importDataFile(event) {
+    const file = event.target.files[0];
+    if(!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if(data.trades) {
+                localStorage.setItem("trades", JSON.stringify(data.trades));
+                localStorage.setItem("coins", JSON.stringify(data.coins || coins));
+                localStorage.setItem("userBalance", data.userBalance || "");
+                localStorage.setItem("dailyLossLimit", data.dailyLossLimit || 0);
+                localStorage.setItem("availableTags", JSON.stringify(data.availableTags || availableTags));
+                
+                alert(translations[currentLang].importSuccess);
+                location.reload();
+            } else {
+                alert("Invalid backup file");
+            }
+        } catch(err) {
+            console.error(err);
+            alert(translations[currentLang].importError);
+        }
+    };
+    reader.readAsText(file);
 }

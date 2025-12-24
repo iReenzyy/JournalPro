@@ -27,6 +27,10 @@
                 <small class="text-muted" id="greeting">Смотритель Рынка</small>
             </div>
             <div class="d-flex gap-2">
+                <button class="btn btn-icon" id="dataBtn" onclick="openDataModal()" title="Data Backup">
+                    <i class="fas fa-save"></i>
+                </button>
+
                 <button class="btn btn-icon" id="privacyBtn" onclick="togglePrivacy()" title="Privacy Mode">
                     <i class="fas fa-eye"></i>
                 </button>
@@ -88,6 +92,19 @@
                         <div class="col-12">
                             <label class="form-label" data-translate="result">Итог (%)</label>
                             <input type="number" class="form-control" id="result" step="0.01" placeholder="-1.5 / 3.2" required>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <label class="form-label" data-translate="tagsTitle">Теги</label>
+                                <small class="text-muted" style="font-size: 0.7rem;" data-translate="tagsHint">Клик - выбор, Крестик - удаление</small>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mb-2" id="tagSelectionContainer">
+                                </div>
+                            <div class="input-group input-group-sm" style="max-width: 200px;">
+                                <input type="text" class="form-control" id="newTagInput" placeholder="New tag...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="addNewTag()">+</button>
+                            </div>
                         </div>
 
                         <div class="col-12">
@@ -157,6 +174,20 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <small class="text-muted privacy-blur" id="riskWidgetLimit">Limit: -</small>
                     <span class="badge bg-secondary" id="riskWidgetStatus">SAFE</span>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="d-flex justify-content-between align-items-center cursor-pointer" data-bs-toggle="collapse" data-bs-target="#tagsCollapse" aria-expanded="false">
+                    <h5 class="mb-0" data-translate="tagsAnalysisTitle">Эффективность Тегов</h5>
+                    <i class="fas fa-chevron-down transition-icon"></i>
+                </div>
+                
+                <div id="tagsCollapse" class="collapse">
+                    <div class="mt-3" id="tagsStatsContainer">
+                         <div class="d-flex flex-column gap-2">
+                            </div>
+                    </div>
                 </div>
             </div>
 
@@ -322,6 +353,39 @@
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-primary-custom w-100" onclick="saveRiskLimit()" data-translate="saveBtn">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="dataModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content modal-content-dark">
+                <div class="modal-header">
+                    <h5 class="modal-title" data-translate="dataModalTitle">Управление данными</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-4" data-translate="dataModalDesc">Сохрани резервную копию своих данных, чтобы не потерять журнал. Или загрузи файл для восстановления.</p>
+                    
+                    <div class="d-grid gap-3">
+                        <button class="btn btn-outline-light p-3 text-start d-flex align-items-center justify-content-between" onclick="exportData()">
+                            <div>
+                                <h6 class="mb-0 text-white" data-translate="exportBtn">Скачать Бэкап (Экспорт)</h6>
+                                <small class="text-muted">Save backup.json</small>
+                            </div>
+                            <i class="fas fa-download fa-lg"></i>
+                        </button>
+
+                        <button class="btn btn-outline-light p-3 text-start d-flex align-items-center justify-content-between" onclick="importDataTrigger()">
+                            <div>
+                                <h6 class="mb-0 text-white" data-translate="importBtn">Загрузить Бэкап (Импорт)</h6>
+                                <small class="text-muted">Restore from file</small>
+                            </div>
+                            <i class="fas fa-upload fa-lg"></i>
+                        </button>
+                    </div>
+                    <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importDataFile(event)">
                 </div>
             </div>
         </div>
