@@ -193,3 +193,108 @@ input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cur
 .cursor-pointer { cursor: pointer; }
 .transition-icon { transition: transform 0.3s; }
 [aria-expanded="true"] .transition-icon { transform: rotate(180deg); }
+
+/* R:R Badge in Table */
+.rr-badge {
+    font-size: 0.65rem;
+    /* Убрал margin-left, так как теперь это блок */
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text-muted);
+}
+.rr-badge.good { color: var(--success); background: rgba(35, 134, 54, 0.15); }
+.rr-badge.bad { color: var(--orange); background: rgba(249, 115, 22, 0.15); }
+
+/* --- Специфичные фиксы --- */
+
+/* Делаем иконку календаря белой в темной теме */
+::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.6;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+
+/* На всякий случай, чтобы текст внутри time input был выровнен красиво */
+input[type="datetime-local"] {
+    font-family: 'Roboto Mono', monospace; /* Моноширинный шрифт для цифр времени */
+}
+
+/* --- FLATPICKR CUSTOMIZATION (Календарь) --- */
+.flatpickr-calendar {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+    border-radius: 12px !important;
+}
+
+.flatpickr-calendar.arrowTop:before, .flatpickr-calendar.arrowTop:after {
+    border-bottom-color: var(--bg-card) !important;
+}
+.flatpickr-calendar.arrowBottom:before, .flatpickr-calendar.arrowBottom:after {
+    border-top-color: var(--bg-card) !important;
+}
+
+.flatpickr-months .flatpickr-month {
+    background: var(--bg-card) !important;
+    color: var(--text-main) !important;
+    fill: var(--text-main) !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+    background: var(--bg-card) !important;
+}
+
+.flatpickr-weekdays {
+    background: transparent !important;
+}
+
+span.flatpickr-weekday {
+    color: var(--text-muted) !important;
+}
+
+.flatpickr-day {
+    color: var(--text-main) !important;
+}
+
+.flatpickr-day.today {
+    border-color: var(--text-muted) !important;
+}
+
+.flatpickr-day.selected, 
+.flatpickr-day.startRange, 
+.flatpickr-day.endRange, 
+.flatpickr-day.selected.inRange, 
+.flatpickr-day.startRange.inRange, 
+.flatpickr-day.endRange.inRange, 
+.flatpickr-day:hover, 
+.flatpickr-day:focus {
+    background: var(--primary-accent) !important;
+    border-color: var(--primary-accent) !important;
+    color: white !important;
+}
+
+.flatpickr-time {
+    background: var(--bg-input) !important;
+    border-top: 1px solid var(--border-color) !important;
+}
+
+.flatpickr-time input {
+    color: var(--text-main) !important;
+}
+
+.flatpickr-time .flatpickr-time-separator {
+    color: var(--text-muted) !important;
+}
+
+.flatpickr-am-pm {
+    color: var(--text-main) !important;
+}
+.flatpickr-am-pm:hover, .flatpickr-am-pm:focus {
+    background: rgba(255,255,255,0.05) !important;
+}

@@ -1,5 +1,6 @@
 const translations = {
     ru: {
+        // ... (СТАРЫЕ ПЕРЕВОДЫ БЕЗ ИЗМЕНЕНИЙ) ...
         title: "Дневник", newTradeTitle: "Новая сделка",
         coin: "Монета", position: "Позиция", date: "Дата", risk: "Риск ($)", profit: "Прибыль ($)", loss: "Убыток ($)", result: "Итог (%)", notes: "Сетап / Заметки",
         addPhoto: "Добавить фото", photoHint: "Макс. 3 фото", saveBtn: "Сохранить сделку", cancelBtn: "Отмена",
@@ -24,9 +25,16 @@ const translations = {
         tagsTitle: "Теги", tagsHint: "Клик - выбор, Крестик - удаление", tagsAnalysisTitle: "Эффективность Тегов",
         confirmTagDelete: "Удалить тег?",
         dataModalTitle: "Управление данными", dataModalDesc: "Сохрани резервную копию своих данных, чтобы не потерять журнал. Или загрузи файл для восстановления.",
-        exportBtn: "Скачать Бэкап (Экспорт)", importBtn: "Загрузить Бэкап (Импорт)", importSuccess: "Данные успешно загружены!", importError: "Ошибка чтения файла!"
+        exportBtn: "Скачать Бэкап (Экспорт)", importBtn: "Загрузить Бэкап (Импорт)", importSuccess: "Данные успешно загружены!", importError: "Ошибка чтения файла!",
+        timeAnalysisTitle: "Прибыль по времени",
+        
+        // НОВЫЕ ПЕРЕВОДЫ ДЛЯ МОНЕТ
+        addCoinTitle: "Добавить пару",
+        addCoinDesc: "Введи название торговой пары (например, APT/USDT).",
+        addBtn: "Добавить"
     },
     en: {
+        // ... (СТАРЫЕ ПЕРЕВОДЫ БЕЗ ИЗМЕНЕНИЙ) ...
         title: "Journal", newTradeTitle: "New Trade",
         coin: "Coin", position: "Position", date: "Date", risk: "Risk ($)", profit: "Profit ($)", loss: "Loss ($)", result: "Result (%)", notes: "Setup / Notes",
         addPhoto: "Add Photo", photoHint: "Max 3 photos", saveBtn: "Save Trade", cancelBtn: "Cancel",
@@ -51,17 +59,21 @@ const translations = {
         tagsTitle: "Tags", tagsHint: "Click to select, X to delete", tagsAnalysisTitle: "Tags Performance",
         confirmTagDelete: "Delete tag?",
         dataModalTitle: "Data Management", dataModalDesc: "Save a backup of your data to keep it safe. Or load a file to restore.",
-        exportBtn: "Download Backup (Export)", importBtn: "Upload Backup (Import)", importSuccess: "Data loaded successfully!", importError: "Error reading file!"
+        exportBtn: "Download Backup (Export)", importBtn: "Upload Backup (Import)", importSuccess: "Data loaded successfully!", importError: "Error reading file!",
+        timeAnalysisTitle: "Time Analysis",
+        
+        // НОВЫЕ ПЕРЕВОДЫ
+        addCoinTitle: "Add Pair",
+        addCoinDesc: "Enter the trading pair name (e.g. APT/USDT).",
+        addBtn: "Add"
     }
 };
 
 let trades = JSON.parse(localStorage.getItem("trades")) || [];
 let coins = JSON.parse(localStorage.getItem("coins")) || ["BTC/USDT", "ETH/USDT", "SOL/USDT"];
-// TAGS DATA
 let availableTags = JSON.parse(localStorage.getItem("availableTags")) || ["Trend", "Reversal", "FOMO", "Impulse", "Scalp"];
 let selectedTags = [];
 
-// 1. ЖЕЛЕЗОБЕТОННЫЙ РУССКИЙ ПО УМОЛЧАНИЮ
 let currentLang = localStorage.getItem("lang");
 if (!currentLang) {
     currentLang = "ru";
@@ -70,17 +82,29 @@ if (!currentLang) {
 
 let editId = null;
 let equityChartInstance = null;
+let timeChartInstance = null;
 let currentImages = [];
 let privacyMode = false;
 let userBalance = localStorage.getItem("userBalance") || "";
 let calendarDate = new Date();
 let dailyLossLimit = localStorage.getItem("dailyLossLimit") || 0; 
+let fpInstance = null; // Инстанс Flatpickr
 
 window.onload = function() {
     setLang(currentLang);
     renderCoinSelect();
-    renderTagSelector(); // RENDER TAGS
-    document.getElementById("open_date").valueAsDate = new Date();
+    renderTagSelector();
+    
+    // ИНИЦИАЛИЗАЦИЯ FLATPICKR (НОВОЕ)
+    fpInstance = flatpickr("#open_date", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+        time_24hr: true,
+        defaultDate: new Date(),
+        minuteIncrement: 1,
+        disableMobile: "true" // Чтобы на мобильных тоже был красивый календарь, а не нативный
+    });
+
     updateStats();
     updateGreeting();
     setupDragAndDrop();
@@ -88,6 +112,11 @@ window.onload = function() {
     updateCalcDisplay();
     VanillaTilt.init(document.querySelectorAll(".tilt-card"), { max: 15, speed: 400, glare: true, "max-glare": 0.1 });
 };
+
+// Функция для установки даты теперь просто сбрасывает Flatpickr
+function setNowDateTime() {
+    if(fpInstance) fpInstance.setDate(new Date());
+}
 
 function openCalculator() { new bootstrap.Modal(document.getElementById('calcModal')).show(); }
 
@@ -105,7 +134,81 @@ function applyRisk() {
     const riskP = parseFloat(document.getElementById("calcRiskInput").value);
     const riskAmount = (bal * riskP) / 100;
     document.getElementById("risk").value = riskAmount.toFixed(2);
+    calcMetrics();
     bootstrap.Modal.getInstance(document.getElementById('calcModal')).hide();
+}
+
+/* --- LOGIC FOR CUSTOM COIN MODAL (NEW) --- */
+function openAddCoinModal() {
+    document.getElementById("newCoinInput").value = ""; // Clear input
+    new bootstrap.Modal(document.getElementById('addCoinModal')).show();
+}
+
+// Заменили старую addCustomCoin на эту
+function addCustomCoin() {
+    openAddCoinModal(); // Теперь просто открывает модал
+}
+
+function saveCustomCoin() {
+    const input = document.getElementById("newCoinInput");
+    const val = input.value.trim().toUpperCase();
+    
+    if(val) {
+        if(!coins.includes(val)) {
+            coins.push(val);
+            localStorage.setItem("coins", JSON.stringify(coins));
+            renderCoinSelect();
+            document.getElementById("coin").value = val;
+            showToast(currentLang === 'ru' ? "Монета добавлена!" : "Coin added!");
+        } else {
+            showToast(currentLang === 'ru' ? "Такая монета уже есть" : "Coin already exists");
+            document.getElementById("coin").value = val;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('addCoinModal')).hide();
+    }
+}
+
+// Обработка Enter в модальном окне монеты
+document.getElementById("newCoinInput").addEventListener("keyup", function(event) {
+    if (event.key === "Enter") {
+        saveCustomCoin();
+    }
+});
+
+/* --- AUTO CALCULATIONS --- */
+function calcMetrics() {
+    calcFormRR();
+    calcResultPercentage();
+}
+
+function calcResultPercentage() {
+    const balance = parseFloat(localStorage.getItem("userBalance"));
+    if (!balance || balance <= 0) return;
+    const profit = parseFloat(document.getElementById("profit").value) || 0;
+    const loss = parseFloat(document.getElementById("loss").value) || 0;
+    const resultInput = document.getElementById("result");
+    let percent = 0;
+    if (profit > 0) percent = (profit / balance) * 100;
+    else if (loss > 0) percent = -(loss / balance) * 100;
+    if (profit > 0 || loss > 0) resultInput.value = percent.toFixed(2);
+    else resultInput.value = "";
+}
+
+function calcFormRR() {
+    const risk = parseFloat(document.getElementById("risk").value);
+    const profit = parseFloat(document.getElementById("profit").value);
+    const badge = document.getElementById("rrPreviewBadge");
+    if (risk > 0 && profit > 0) {
+        const ratio = (profit / risk).toFixed(1);
+        badge.innerText = `R:R 1:${ratio}`;
+        badge.style.opacity = "1";
+        badge.className = "badge font-mono transition-icon"; 
+        if(ratio >= 3) badge.classList.add("bg-success");
+        else if(ratio >= 2) badge.classList.add("bg-primary");
+        else badge.classList.add("bg-secondary");
+    } else {
+        badge.style.opacity = "0";
+    }
 }
 
 function generateShareCard(tradeId) {
@@ -126,8 +229,11 @@ function generateShareCard(tradeId) {
     ctx.fillText(`${sign}${pnl}$`, 540, 600); ctx.shadowBlur = 0;
     ctx.fillStyle = '#8b949e'; ctx.font = '60px Inter'; ctx.fillText(`ROI: ${t.result}%`, 540, 700);
     ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 50px Inter'; ctx.fillText('СМОТРИТЕЛЬ РЫНКА', 540, 950);
-    ctx.fillStyle = '#ffffff'; ctx.font = '30px Inter'; ctx.fillText(t.date, 540, 1000);
-    const link = document.createElement('a'); link.download = `trade_${t.coin}_${t.date}.png`; link.href = canvas.toDataURL(); link.click();
+    ctx.fillStyle = '#ffffff'; ctx.font = '30px Inter'; 
+    // Format date for share card
+    const dateDisplay = t.date.includes('T') || t.date.includes(' ') ? t.date.substring(0, 10) : t.date;
+    ctx.fillText(dateDisplay, 540, 1000);
+    const link = document.createElement('a'); link.download = `trade_${t.coin}_${dateDisplay}.png`; link.href = canvas.toDataURL(); link.click();
 }
 
 function togglePrivacy() {
@@ -176,7 +282,7 @@ function showSection(sectionId, element) {
     document.querySelectorAll('.nav-link-custom').forEach(el => el.classList.remove('active')); if(element) element.classList.add('active');
 }
 function renderCoinSelect() { const select = document.getElementById("coin"); select.innerHTML = ""; coins.forEach(c => { let opt = document.createElement("option"); opt.value = c; opt.text = c; select.appendChild(opt); }); }
-function addCustomCoin() { const val = prompt(currentLang === 'ru' ? "Введите пару:" : "Enter pair:"); if(val) { coins.push(val.toUpperCase()); localStorage.setItem("coins", JSON.stringify(coins)); renderCoinSelect(); document.getElementById("coin").value = val.toUpperCase(); } }
+// addCustomCoin перемещен в начало, используем openAddCoinModal
 
 /* --- TAGS LOGIC --- */
 function renderTagSelector() {
@@ -222,7 +328,7 @@ function saveTrade(e) {
         id: editId || Date.now(), 
         coin: document.getElementById("coin").value, 
         position: document.getElementById("position").value, 
-        date: document.getElementById("open_date").value, 
+        date: document.getElementById("open_date").value, // Flatpickr puts string here
         risk: parseFloat(document.getElementById("risk").value) || 0, 
         profit: parseFloat(document.getElementById("profit").value) || 0, 
         loss: parseFloat(document.getElementById("loss").value) || 0, 
@@ -236,7 +342,8 @@ function saveTrade(e) {
     else { trades.push(trade); showToast(translations[currentLang].toastSaved); }
     localStorage.setItem("trades", JSON.stringify(trades)); 
     e.target.reset(); 
-    document.getElementById("open_date").valueAsDate = new Date(); 
+    setNowDateTime(); 
+    document.getElementById("rrPreviewBadge").style.opacity = "0"; 
     currentImages = []; 
     selectedTags = []; 
     renderImagePreviews();
@@ -245,16 +352,25 @@ function saveTrade(e) {
 function deleteTrade(id) { if(confirm(translations[currentLang].confirmDelete)) { trades = trades.filter(t => t.id !== id); localStorage.setItem("trades", JSON.stringify(trades)); renderTable(); updateStats(); showToast(translations[currentLang].toastDeleted); } }
 function editTrade(id) {
     const t = trades.find(t => t.id === id); if(!t) return;
-    editId = id; document.getElementById("coin").value = t.coin; document.getElementById("position").value = t.position; document.getElementById("open_date").value = t.date; document.getElementById("risk").value = t.risk; document.getElementById("profit").value = t.profit; document.getElementById("loss").value = t.loss; document.getElementById("result").value = t.result; document.getElementById("setup").value = t.setup; 
+    editId = id; document.getElementById("coin").value = t.coin; document.getElementById("position").value = t.position; 
+    
+    // Set date for Flatpickr
+    if(fpInstance) fpInstance.setDate(t.date);
+    else document.getElementById("open_date").value = t.date;
+
+    document.getElementById("risk").value = t.risk; document.getElementById("profit").value = t.profit; document.getElementById("loss").value = t.loss; document.getElementById("result").value = t.result; document.getElementById("setup").value = t.setup; 
     currentImages = t.images || []; 
     selectedTags = t.tags || []; 
     renderImagePreviews();
     renderTagSelector();
+    calcMetrics(); 
     document.querySelector("#submitBtn span").innerText = translations[currentLang].updateBtn; document.getElementById("cancelBtn").style.display = 'block'; showSection('main', document.querySelector('.nav-link-custom:nth-child(1)'));
 }
 function cancelEdit() { 
     editId = null; 
     document.getElementById("tradeForm").reset(); 
+    setNowDateTime();
+    document.getElementById("rrPreviewBadge").style.opacity = "0";
     currentImages = []; 
     selectedTags = []; 
     renderImagePreviews(); 
@@ -266,7 +382,11 @@ function renderTable() {
     const tbody = document.getElementById("tradesBody"); tbody.innerHTML = "";
     if (trades.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><i class="fas fa-rocket fa-3x text-muted mb-3 opacity-25"></i><h5 class="text-muted fw-normal">${translations[currentLang].emptyState}</h5><button class="btn btn-outline-primary btn-sm mt-2" onclick="showSection('main', document.querySelector('.nav-link-custom:nth-child(1)'))">${translations[currentLang].startBtn}</button></td></tr>`; return; }
     [...trades].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(t => {
-        const isWin = t.result > 0; const pnl = isWin ? t.profit : -t.loss; const pnlClass = isWin ? 'text-profit' : (t.result < 0 ? 'text-loss' : ''); const imageIcon = (t.images && t.images.length > 0) ? `<i class="fas fa-camera text-muted ms-1"></i>` : ''; const blurClass = "privacy-blur"; 
+        const isWin = t.result > 0; 
+        const pnl = isWin ? t.profit : -t.loss; 
+        const pnlClass = isWin ? 'text-profit' : (t.result < 0 ? 'text-loss' : ''); 
+        const imageIcon = (t.images && t.images.length > 0) ? `<i class="fas fa-camera text-muted ms-1"></i>` : ''; 
+        const blurClass = "privacy-blur"; 
         
         let tagsHtml = '';
         if(t.tags && t.tags.length > 0) {
@@ -275,7 +395,37 @@ function renderTable() {
             tagsHtml += '</div>';
         }
 
-        tbody.innerHTML += `<tr><td class="text-muted small">${t.date}</td><td><strong class="text-white">${t.coin}</strong>${imageIcon}${tagsHtml}</td><td><span class="badge ${t.position === 'Long' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}">${t.position}</span></td><td class="text-end ${pnlClass} font-mono ${blurClass}">${pnl > 0 ? '+' : ''}${pnl}$</td><td class="text-end ${pnlClass} font-mono">${t.result}%</td><td class="text-center"><button class="btn btn-sm btn-link text-muted" onclick="generateShareCard(${t.id})" title="Share"><i class="fas fa-share-nodes"></i></button><button class="btn btn-sm btn-link text-muted" onclick="editTrade(${t.id})"><i class="fas fa-pen"></i></button><button class="btn btn-sm btn-link text-muted" onclick="deleteTrade(${t.id})"><i class="fas fa-trash"></i></button></td></tr>`;
+        let rrHtml = '';
+        if (t.risk > 0) {
+            const rMultiple = isWin 
+                ? (t.profit / t.risk).toFixed(1) 
+                : -(t.loss / t.risk).toFixed(1);
+            const rrClass = rMultiple >= 2 ? 'good' : (rMultiple < 1 && rMultiple > 0 ? 'bad' : '');
+            rrHtml = `<small class="rr-badge ${rrClass} font-mono mt-1">${rMultiple}R</small>`;
+        }
+        
+        const dateObj = new Date(t.date);
+        const dateDisplay = isNaN(dateObj.getTime()) ? t.date : 
+            `${dateObj.toLocaleDateString()} <br><small class='text-muted'>${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>`;
+
+        tbody.innerHTML += `
+        <tr>
+            <td class="text-muted small" style="line-height:1.2">${dateDisplay}</td>
+            <td><strong class="text-white">${t.coin}</strong>${imageIcon}${tagsHtml}</td>
+            <td><span class="badge ${t.position === 'Long' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}">${t.position}</span></td>
+            <td class="${pnlClass} font-mono ${blurClass}">
+                <div class="d-flex flex-column align-items-end justify-content-center">
+                    <span>${pnl > 0 ? '+' : ''}${pnl}$</span>
+                    ${rrHtml}
+                </div>
+            </td>
+            <td class="text-end ${pnlClass} font-mono">${t.result}%</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-link text-muted" onclick="generateShareCard(${t.id})" title="Share"><i class="fas fa-share-nodes"></i></button>
+                <button class="btn btn-sm btn-link text-muted" onclick="editTrade(${t.id})"><i class="fas fa-pen"></i></button>
+                <button class="btn btn-sm btn-link text-muted" onclick="deleteTrade(${t.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>`;
     });
 }
 function updateStats() {
@@ -286,6 +436,7 @@ function updateStats() {
     document.getElementById("profitFactor").innerText = profitFactor; 
     renderChart(); renderAchievements(totalTrades, netProfit, winRate); renderCalendar();
     renderTagsAnalytics();
+    renderTimeChart(); // RENDER TIME CHART
     renderRiskWidget();
 }
 function renderTagsAnalytics() {
@@ -303,31 +454,75 @@ function renderTagsAnalytics() {
             });
         }
     });
-
     const entries = Object.entries(stats);
-    if(entries.length === 0) {
-        container.innerHTML = `<div class="text-center text-muted small py-2">Нет данных по тегам</div>`;
-        return;
-    }
-
+    if(entries.length === 0) { container.innerHTML = `<div class="text-center text-muted small py-2">Нет данных по тегам</div>`; return; }
     entries.sort((a, b) => b[1].pnl - a[1].pnl);
-
     entries.forEach(([tag, data]) => {
         const isPos = data.pnl >= 0;
         const winRate = ((data.wins / data.count) * 100).toFixed(0);
         container.innerHTML += `
         <div class="tag-stat-card">
-            <div>
-                <strong class="text-white">${tag}</strong>
-                <div class="small text-muted">${data.count} trades | ${winRate}% WR</div>
-            </div>
-            <div class="font-mono ${isPos ? 'text-success' : 'text-danger'} privacy-blur" style="font-weight:700">
-                ${isPos?'+':''}${data.pnl.toFixed(2)}$
-            </div>
-        </div>
-        `;
+            <div><strong class="text-white">${tag}</strong><div class="small text-muted">${data.count} trades | ${winRate}% WR</div></div>
+            <div class="font-mono ${isPos ? 'text-success' : 'text-danger'} privacy-blur" style="font-weight:700">${isPos?'+':''}${data.pnl.toFixed(2)}$</div>
+        </div>`;
     });
 }
+
+// --- TIME ANALYSIS CHART ---
+function renderTimeChart() {
+    const ctx = document.getElementById('timeChart').getContext('2d');
+    
+    // Buckets: 0-4, 4-8, 8-12, 12-16, 16-20, 20-24
+    const buckets = {
+        '00-04': 0, '04-08': 0, '08-12': 0, '12-16': 0, '16-20': 0, '20-00': 0
+    };
+
+    trades.forEach(t => {
+        let hour = 0;
+        if(t.date.includes(' ') || t.date.includes('T')) {
+            hour = new Date(t.date).getHours();
+        } else {
+            return; 
+        }
+        const pnl = t.result > 0 ? t.profit : -t.loss;
+
+        if (hour < 4) buckets['00-04'] += pnl;
+        else if (hour < 8) buckets['04-08'] += pnl;
+        else if (hour < 12) buckets['08-12'] += pnl;
+        else if (hour < 16) buckets['12-16'] += pnl;
+        else if (hour < 20) buckets['16-20'] += pnl;
+        else buckets['20-00'] += pnl;
+    });
+
+    const labels = Object.keys(buckets);
+    const data = Object.values(buckets);
+    const backgroundColors = data.map(val => val >= 0 ? '#238636' : '#da3633'); 
+
+    if (timeChartInstance) timeChartInstance.destroy();
+
+    timeChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'PnL ($)',
+                data: data,
+                backgroundColor: backgroundColors,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: '#9ca3af', font: {size: 10} } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af' } }
+            }
+        }
+    });
+}
+
 function renderAchievements(total, profit, winRate) {
     const grid = document.getElementById('achievementsGrid'); grid.innerHTML = ""; const t = translations[currentLang];
     const badges = [ { id: 1, name: t.achieve1, desc: t.achieve1Desc, icon: "fa-baby", unlocked: total >= 1 }, { id: 2, name: t.achieve2, desc: t.achieve2Desc, icon: "fa-crosshairs", unlocked: winRate >= 60 && total >= 5 }, { id: 3, name: t.achieve3, desc: t.achieve3Desc, icon: "fa-crown", unlocked: profit >= 1000 }, { id: 4, name: t.achieve4, desc: t.achieve4Desc, icon: "fa-hand-fist", unlocked: total >= 20 } ];
@@ -358,14 +553,16 @@ function renderCalendar() {
     for(let i=0; i<startOffset; i++) { grid.innerHTML += `<div class="calendar-day empty"></div>`; }
     for(let day=1; day<=daysInMonth; day++) {
         const dateStr = `${year}-${String(month+1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const dayTrades = trades.filter(t => t.date === dateStr); let dayPnl = 0; dayTrades.forEach(t => { dayPnl += (t.result > 0 ? t.profit : -t.loss); });
+        
+        const dayTrades = trades.filter(t => t.date.startsWith(dateStr)); 
+        let dayPnl = 0; dayTrades.forEach(t => { dayPnl += (t.result > 0 ? t.profit : -t.loss); });
         let content = `<span class="day-number">${day}</span>`; let classes = "calendar-day";
         if (dayTrades.length > 0) { if (dayPnl > 0) classes += " win"; if (dayPnl < 0) classes += " loss"; const pnlFormatted = (dayPnl > 0 ? "+" : "") + dayPnl.toFixed(0) + "$"; const countText = dayTrades.length + (currentLang==='ru' ? " сд." : " tr."); content += `<div class="day-profit font-mono ${dayPnl >= 0 ? 'text-white' : 'text-white'} privacy-blur">${pnlFormatted}</div><div class="day-count">${countText}</div>`; }
         grid.innerHTML += `<div class="${classes}" onclick="openDayDetails('${dateStr}')">${content}</div>`;
     }
 }
 function openDayDetails(dateStr) {
-    const dayTrades = trades.filter(t => t.date === dateStr); document.getElementById("dayDetailsDate").innerText = dateStr;
+    const dayTrades = trades.filter(t => t.date.startsWith(dateStr)); document.getElementById("dayDetailsDate").innerText = dateStr;
     let net = 0; dayTrades.forEach(t => net += (t.result > 0 ? t.profit : -t.loss));
     const netEl = document.getElementById("dayDetailsNet"); netEl.innerText = (net > 0 ? "+" : "") + net.toFixed(2) + "$"; netEl.className = "font-mono mb-0 privacy-blur " + (net >= 0 ? "text-success" : "text-danger");
     document.getElementById("dayDetailsCount").innerText = dayTrades.length + (currentLang === 'ru' ? " Сделок" : " Trades");
@@ -392,8 +589,9 @@ function saveRiskLimit() {
 
 function renderRiskWidget() {
     const t = translations[currentLang];
+    // Compare YYYY-MM-DD
     const todayStr = new Date().toISOString().split('T')[0];
-    const todayTrades = trades.filter(tr => tr.date === todayStr);
+    const todayTrades = trades.filter(tr => tr.date.startsWith(todayStr));
     let todayPnl = 0;
     todayTrades.forEach(tr => todayPnl += (tr.result > 0 ? tr.profit : -tr.loss));
 
