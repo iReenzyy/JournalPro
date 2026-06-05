@@ -228,7 +228,7 @@ function generateShareCard(tradeId) {
     ctx.shadowColor = isWin ? 'rgba(35, 134, 54, 0.5)' : 'rgba(218, 54, 51, 0.5)'; ctx.shadowBlur = 40;
     ctx.fillText(`${sign}${pnl}$`, 540, 600); ctx.shadowBlur = 0;
     ctx.fillStyle = '#8b949e'; ctx.font = '60px Inter'; ctx.fillText(`ROI: ${t.result}%`, 540, 700);
-    ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 50px Inter'; ctx.fillText('СМОТРИТЕЛЬ РЫНКА', 540, 950);
+    ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 50px Inter'; ctx.fillText('MARKET VERSUS PERSON', 540, 950);
     ctx.fillStyle = '#ffffff'; ctx.font = '30px Inter'; 
     // Format date for share card
     const dateDisplay = t.date.includes('T') || t.date.includes(' ') ? t.date.substring(0, 10) : t.date;
@@ -256,7 +256,7 @@ function updateGreeting() {
     const hour = new Date().getHours(); const t = translations[currentLang];
     let greet = t.greetDay;
     if (hour >= 5 && hour < 12) greet = t.greetMorning; else if (hour >= 18 && hour < 23) greet = t.greetEvening; else if (hour >= 23 || hour < 5) greet = t.greetNight;
-    document.getElementById("greeting").innerText = greet + " | Смотритель Рынка";
+    document.getElementById("greeting").innerText = greet + " | Market Versus Person";
 }
 function triggerConfetti() { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ['#3b82f6', '#8b5cf6', '#238636'] }); }
 function setLang(lang) {
