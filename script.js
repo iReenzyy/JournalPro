@@ -1,6 +1,5 @@
 const translations = {
     ru: {
-        // ... (СТАРЫЕ ПЕРЕВОДЫ БЕЗ ИЗМЕНЕНИЙ) ...
         title: "Дневник", newTradeTitle: "Новая сделка",
         coin: "Монета", position: "Позиция", date: "Дата", risk: "Риск ($)", profit: "Прибыль ($)", loss: "Убыток ($)", result: "Итог (%)", notes: "Сетап / Заметки",
         addPhoto: "Добавить фото", photoHint: "Макс. 3 фото", saveBtn: "Сохранить сделку", cancelBtn: "Отмена",
@@ -27,14 +26,11 @@ const translations = {
         dataModalTitle: "Управление данными", dataModalDesc: "Сохрани резервную копию своих данных, чтобы не потерять журнал. Или загрузи файл для восстановления.",
         exportBtn: "Скачать Бэкап (Экспорт)", importBtn: "Загрузить Бэкап (Импорт)", importSuccess: "Данные успешно загружены!", importError: "Ошибка чтения файла!",
         timeAnalysisTitle: "Прибыль по времени",
-        
-        // НОВЫЕ ПЕРЕВОДЫ ДЛЯ МОНЕТ
         addCoinTitle: "Добавить пару",
         addCoinDesc: "Введи название торговой пары (например, APT/USDT).",
         addBtn: "Добавить"
     },
     en: {
-        // ... (СТАРЫЕ ПЕРЕВОДЫ БЕЗ ИЗМЕНЕНИЙ) ...
         title: "Journal", newTradeTitle: "New Trade",
         coin: "Coin", position: "Position", date: "Date", risk: "Risk ($)", profit: "Profit ($)", loss: "Loss ($)", result: "Result (%)", notes: "Setup / Notes",
         addPhoto: "Add Photo", photoHint: "Max 3 photos", saveBtn: "Save Trade", cancelBtn: "Cancel",
@@ -61,8 +57,6 @@ const translations = {
         dataModalTitle: "Data Management", dataModalDesc: "Save a backup of your data to keep it safe. Or load a file to restore.",
         exportBtn: "Download Backup (Export)", importBtn: "Upload Backup (Import)", importSuccess: "Data loaded successfully!", importError: "Error reading file!",
         timeAnalysisTitle: "Time Analysis",
-        
-        // НОВЫЕ ПЕРЕВОДЫ
         addCoinTitle: "Add Pair",
         addCoinDesc: "Enter the trading pair name (e.g. APT/USDT).",
         addBtn: "Add"
@@ -88,21 +82,20 @@ let privacyMode = false;
 let userBalance = localStorage.getItem("userBalance") || "";
 let calendarDate = new Date();
 let dailyLossLimit = localStorage.getItem("dailyLossLimit") || 0; 
-let fpInstance = null; // Инстанс Flatpickr
+let fpInstance = null; 
 
 window.onload = function() {
     setLang(currentLang);
     renderCoinSelect();
     renderTagSelector();
     
-    // ИНИЦИАЛИЗАЦИЯ FLATPICKR (НОВОЕ)
     fpInstance = flatpickr("#open_date", {
         enableTime: true,
         dateFormat: "Y-m-d H:i",
         time_24hr: true,
         defaultDate: new Date(),
         minuteIncrement: 1,
-        disableMobile: "true" // Чтобы на мобильных тоже был красивый календарь, а не нативный
+        disableMobile: "true" 
     });
 
     updateStats();
@@ -113,7 +106,6 @@ window.onload = function() {
     VanillaTilt.init(document.querySelectorAll(".tilt-card"), { max: 15, speed: 400, glare: true, "max-glare": 0.1 });
 };
 
-// Функция для установки даты теперь просто сбрасывает Flatpickr
 function setNowDateTime() {
     if(fpInstance) fpInstance.setDate(new Date());
 }
@@ -138,15 +130,13 @@ function applyRisk() {
     bootstrap.Modal.getInstance(document.getElementById('calcModal')).hide();
 }
 
-/* --- LOGIC FOR CUSTOM COIN MODAL (NEW) --- */
 function openAddCoinModal() {
-    document.getElementById("newCoinInput").value = ""; // Clear input
+    document.getElementById("newCoinInput").value = ""; 
     new bootstrap.Modal(document.getElementById('addCoinModal')).show();
 }
 
-// Заменили старую addCustomCoin на эту
 function addCustomCoin() {
-    openAddCoinModal(); // Теперь просто открывает модал
+    openAddCoinModal(); 
 }
 
 function saveCustomCoin() {
@@ -168,14 +158,12 @@ function saveCustomCoin() {
     }
 }
 
-// Обработка Enter в модальном окне монеты
 document.getElementById("newCoinInput").addEventListener("keyup", function(event) {
     if (event.key === "Enter") {
         saveCustomCoin();
     }
 });
 
-/* --- AUTO CALCULATIONS --- */
 function calcMetrics() {
     calcFormRR();
     calcResultPercentage();
@@ -228,9 +216,8 @@ function generateShareCard(tradeId) {
     ctx.shadowColor = isWin ? 'rgba(35, 134, 54, 0.5)' : 'rgba(218, 54, 51, 0.5)'; ctx.shadowBlur = 40;
     ctx.fillText(`${sign}${pnl}$`, 540, 600); ctx.shadowBlur = 0;
     ctx.fillStyle = '#8b949e'; ctx.font = '60px Inter'; ctx.fillText(`ROI: ${t.result}%`, 540, 700);
-    ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 50px Inter'; ctx.fillText('MARKET VERSUS PERSON', 540, 950);
+    ctx.fillStyle = '#3b82f6'; ctx.font = 'bold 50px Inter'; ctx.fillText('Market Versus Person', 540, 950);
     ctx.fillStyle = '#ffffff'; ctx.font = '30px Inter'; 
-    // Format date for share card
     const dateDisplay = t.date.includes('T') || t.date.includes(' ') ? t.date.substring(0, 10) : t.date;
     ctx.fillText(dateDisplay, 540, 1000);
     const link = document.createElement('a'); link.download = `trade_${t.coin}_${dateDisplay}.png`; link.href = canvas.toDataURL(); link.click();
@@ -282,9 +269,7 @@ function showSection(sectionId, element) {
     document.querySelectorAll('.nav-link-custom').forEach(el => el.classList.remove('active')); if(element) element.classList.add('active');
 }
 function renderCoinSelect() { const select = document.getElementById("coin"); select.innerHTML = ""; coins.forEach(c => { let opt = document.createElement("option"); opt.value = c; opt.text = c; select.appendChild(opt); }); }
-// addCustomCoin перемещен в начало, используем openAddCoinModal
 
-/* --- TAGS LOGIC --- */
 function renderTagSelector() {
     const container = document.getElementById("tagSelectionContainer");
     container.innerHTML = "";
@@ -328,7 +313,7 @@ function saveTrade(e) {
         id: editId || Date.now(), 
         coin: document.getElementById("coin").value, 
         position: document.getElementById("position").value, 
-        date: document.getElementById("open_date").value, // Flatpickr puts string here
+        date: document.getElementById("open_date").value, 
         risk: parseFloat(document.getElementById("risk").value) || 0, 
         profit: parseFloat(document.getElementById("profit").value) || 0, 
         loss: parseFloat(document.getElementById("loss").value) || 0, 
@@ -354,7 +339,6 @@ function editTrade(id) {
     const t = trades.find(t => t.id === id); if(!t) return;
     editId = id; document.getElementById("coin").value = t.coin; document.getElementById("position").value = t.position; 
     
-    // Set date for Flatpickr
     if(fpInstance) fpInstance.setDate(t.date);
     else document.getElementById("open_date").value = t.date;
 
@@ -379,55 +363,80 @@ function cancelEdit() {
 }
 
 function renderTable() {
-    const tbody = document.getElementById("tradesBody"); tbody.innerHTML = "";
-    if (trades.length === 0) { tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><i class="fas fa-rocket fa-3x text-muted mb-3 opacity-25"></i><h5 class="text-muted fw-normal">${translations[currentLang].emptyState}</h5><button class="btn btn-outline-primary btn-sm mt-2" onclick="showSection('main', document.querySelector('.nav-link-custom:nth-child(1)'))">${translations[currentLang].startBtn}</button></td></tr>`; return; }
+    document.querySelectorAll('th.text-end').forEach(th => {
+        th.classList.remove('text-end');
+        th.classList.add('text-center');
+    });
+
+    const tbody = document.getElementById("tradesBody"); 
+    tbody.innerHTML = "";
+    
+    if (trades.length === 0) { 
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5"><i class="fas fa-rocket fa-3x text-muted mb-3 opacity-25"></i><h5 class="text-muted fw-normal">${translations[currentLang].emptyState}</h5><button class="btn btn-outline-primary btn-sm mt-2" onclick="showSection('main', document.querySelector('.nav-link-custom:nth-child(1)'))">${translations[currentLang].startBtn}</button></td></tr>`; 
+        return; 
+    }
+    
     [...trades].sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(t => {
         const isWin = t.result > 0; 
         const pnl = isWin ? t.profit : -t.loss; 
         const pnlClass = isWin ? 'text-profit' : (t.result < 0 ? 'text-loss' : ''); 
-        const imageIcon = (t.images && t.images.length > 0) ? `<i class="fas fa-camera text-muted ms-1"></i>` : ''; 
+        const imageIcon = (t.images && t.images.length > 0) ? `<i class="fas fa-camera text-muted ms-2" style="font-size: 0.8rem;"></i>` : ''; 
         const blurClass = "privacy-blur"; 
         
         let tagsHtml = '';
         if(t.tags && t.tags.length > 0) {
-            tagsHtml = '<div class="mt-1">';
-            t.tags.forEach(tag => { tagsHtml += `<span class="tag-badge-table">${tag}</span>`; });
+            tagsHtml = '<div style="position: absolute; bottom: 6px; left: 15px; display: flex; gap: 4px; overflow: hidden; white-space: nowrap; max-width: 120px;">';
+            t.tags.forEach(tag => { tagsHtml += `<span class="tag-badge-table" style="margin:0;">${tag}</span>`; });
             tagsHtml += '</div>';
         }
 
         let rrHtml = '';
         if (t.risk > 0) {
-            const rMultiple = isWin 
-                ? (t.profit / t.risk).toFixed(1) 
-                : -(t.loss / t.risk).toFixed(1);
+            const rMultiple = isWin ? (t.profit / t.risk).toFixed(1) : -(t.loss / t.risk).toFixed(1);
             const rrClass = rMultiple >= 2 ? 'good' : (rMultiple < 1 && rMultiple > 0 ? 'bad' : '');
-            rrHtml = `<small class="rr-badge ${rrClass} font-mono mt-1">${rMultiple}R</small>`;
+            rrHtml = `<div style="position: absolute; bottom: 6px; left: 0; right: 0; text-align: center;"><span class="rr-badge ${rrClass} font-mono">${rMultiple}R</span></div>`;
         }
         
         const dateObj = new Date(t.date);
-        const dateDisplay = isNaN(dateObj.getTime()) ? t.date : 
-            `${dateObj.toLocaleDateString()} <br><small class='text-muted'>${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>`;
+        const dateStr = isNaN(dateObj.getTime()) ? t.date : dateObj.toLocaleDateString('ru-RU', {day: '2-digit', month: '2-digit', year: 'numeric'});
+        
+        const timeStr = isNaN(dateObj.getTime()) ? '' : `<div style="position: absolute; bottom: 6px; left: 15px; font-size: 0.7rem;" class="text-muted">${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>`;
+
+        const cellStyle = "position: relative; padding-top: 16px; padding-bottom: 32px; vertical-align: top;";
 
         tbody.innerHTML += `
         <tr>
-            <td class="text-muted small" style="line-height:1.2">${dateDisplay}</td>
-            <td><strong class="text-white">${t.coin}</strong>${imageIcon}${tagsHtml}</td>
-            <td><span class="badge ${t.position === 'Long' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}">${t.position}</span></td>
-            <td class="${pnlClass} font-mono ${blurClass}">
-                <div class="d-flex flex-column align-items-end justify-content-center">
-                    <span>${pnl > 0 ? '+' : ''}${pnl}$</span>
-                    ${rrHtml}
-                </div>
+            <td style="${cellStyle}">
+                <div style="font-size: 0.85rem; font-weight: 500;" class="text-muted">${dateStr}</div>
+                ${timeStr}
             </td>
-            <td class="text-end ${pnlClass} font-mono">${t.result}%</td>
-            <td class="text-center">
-                <button class="btn btn-sm btn-link text-muted" onclick="generateShareCard(${t.id})" title="Share"><i class="fas fa-share-nodes"></i></button>
-                <button class="btn btn-sm btn-link text-muted" onclick="editTrade(${t.id})"><i class="fas fa-pen"></i></button>
-                <button class="btn btn-sm btn-link text-muted" onclick="deleteTrade(${t.id})"><i class="fas fa-trash"></i></button>
+            <td style="${cellStyle}">
+                <div class="d-flex align-items-center" style="font-size: 0.95rem;">
+                    <strong class="text-white">${t.coin}</strong>${imageIcon}
+                </div>
+                ${tagsHtml}
+            </td>
+            <td style="${cellStyle}">
+                <div><span class="badge ${t.position === 'Long' ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}">${t.position}</span></div>
+            </td>
+            <td style="${cellStyle} text-align: center;" class="${pnlClass} font-mono ${blurClass}">
+                <div style="font-size: 1rem; font-weight: 600;">${pnl > 0 ? '+' : ''}${pnl}$</div>
+                ${rrHtml}
+            </td>
+            <td style="${cellStyle} text-align: center;" class="${pnlClass} font-mono">
+                <div style="font-size: 1rem; font-weight: 600;">${t.result}%</div>
+            </td>
+            <td style="${cellStyle} text-align: center;">
+                <div style="margin-top: -4px;">
+                    <button class="btn btn-sm btn-link text-muted p-1" onclick="generateShareCard(${t.id})" title="Share"><i class="fas fa-share-nodes"></i></button>
+                    <button class="btn btn-sm btn-link text-muted p-1" onclick="editTrade(${t.id})"><i class="fas fa-pen"></i></button>
+                    <button class="btn btn-sm btn-link text-muted p-1" onclick="deleteTrade(${t.id})"><i class="fas fa-trash"></i></button>
+                </div>
             </td>
         </tr>`;
     });
 }
+
 function updateStats() {
     const totalTrades = trades.length; const wins = trades.filter(t => t.result > 0).length; const winRate = totalTrades ? ((wins / totalTrades) * 100).toFixed(1) : 0;
     const totalProfit = trades.reduce((acc, t) => acc + (t.profit || 0), 0); const totalLoss = trades.reduce((acc, t) => acc + (t.loss || 0), 0); const netProfit = totalProfit - totalLoss; const profitFactor = totalLoss ? (totalProfit / totalLoss).toFixed(2) : (totalTrades > 0 ? "∞" : "0");
@@ -436,7 +445,7 @@ function updateStats() {
     document.getElementById("profitFactor").innerText = profitFactor; 
     renderChart(); renderAchievements(totalTrades, netProfit, winRate); renderCalendar();
     renderTagsAnalytics();
-    renderTimeChart(); // RENDER TIME CHART
+    renderTimeChart(); 
     renderRiskWidget();
 }
 function renderTagsAnalytics() {
@@ -468,11 +477,9 @@ function renderTagsAnalytics() {
     });
 }
 
-// --- TIME ANALYSIS CHART ---
 function renderTimeChart() {
     const ctx = document.getElementById('timeChart').getContext('2d');
     
-    // Buckets: 0-4, 4-8, 8-12, 12-16, 16-20, 20-24
     const buckets = {
         '00-04': 0, '04-08': 0, '08-12': 0, '12-16': 0, '16-20': 0, '20-00': 0
     };
@@ -540,7 +547,6 @@ function renderChart() {
 }
 function showToast(msg) { Toastify({ text: msg, duration: 3000, gravity: "bottom", position: "right", style: { background: "var(--primary-accent)" } }).showToast(); }
 
-/* --- CALENDAR LOGIC --- */
 function changeMonth(step) { calendarDate.setMonth(calendarDate.getMonth() + step); renderCalendar(); }
 function renderCalendarHeader() { const header = document.getElementById("calendarHeader"); const days = translations[currentLang].weekDays; header.innerHTML = ""; days.forEach(day => { header.innerHTML += `<div>${day}</div>`; }); }
 function renderCalendar() {
@@ -572,7 +578,6 @@ function openDayDetails(dateStr) {
     new bootstrap.Modal(document.getElementById('dayDetailsModal')).show();
 }
 
-/* --- RISK WIDGET LOGIC --- */
 function openRiskSettings() {
     document.getElementById("dailyLossInput").value = dailyLossLimit;
     new bootstrap.Modal(document.getElementById('riskLimitModal')).show();
@@ -589,7 +594,6 @@ function saveRiskLimit() {
 
 function renderRiskWidget() {
     const t = translations[currentLang];
-    // Compare YYYY-MM-DD
     const todayStr = new Date().toISOString().split('T')[0];
     const todayTrades = trades.filter(tr => tr.date.startsWith(todayStr));
     let todayPnl = 0;
@@ -604,7 +608,6 @@ function renderRiskWidget() {
     currentEl.innerText = (todayPnl > 0 ? "+" : "") + todayPnl.toFixed(2) + "$";
     limitEl.innerText = `Limit: ${dailyLossLimit}$`;
     
-    // Сброс классов
     card.classList.remove("pulse-warning", "pulse-orange", "pulse-critical");
     bar.className = "progress-bar";
     status.className = "badge";
@@ -648,7 +651,6 @@ function renderRiskWidget() {
     }
 }
 
-/* --- BACKUP LOGIC --- */
 function openDataModal() {
     new bootstrap.Modal(document.getElementById('dataModal')).show();
 }
